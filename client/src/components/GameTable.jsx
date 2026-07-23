@@ -19,6 +19,7 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
 
   const prevP1Hp = useRef(null);
   const prevP2Hp = useRef(null);
+  const lastActionTimestamp = useRef(null);
 
   if (!gameState || !gameState.players || gameState.players.length < 2) return null;
 
@@ -40,12 +41,57 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
   const isLeftTurn = gameState.turnSocketId === leftPlayer.socketId;
   const isRightTurn = gameState.turnSocketId === rightPlayer.socketId;
 
-  // Active player object & socket for current turn
+  // Active player object for current turn
   const activePlayer = gameState.players[gameState.turnIndex] || leftPlayer;
   const activeOpponent = gameState.players[(gameState.turnIndex + 1) % 2] || rightPlayer;
 
   // Check if user is allowed to act
   const canAct = isLocalMode ? true : isLeftTurn;
+
+  // Real-time animation broadcast for ALL actions (Both Player & Opponent turns!)
+  useEffect(() => {
+    if (!gameState.lastAction || gameState.lastAction.timestamp === lastActionTimestamp.current) {
+      return;
+    }
+
+    lastActionTimestamp.current = gameState.lastAction.timestamp;
+    const action = gameState.lastAction;
+
+    if (action.type === 'shoot') {
+      const isActorLeft = action.actorSocketId === leftPlayer.socketId;
+      
+      let dir = '';
+      if (isActorLeft) {
+        dir = action.target === 'opponent' ? 'right' : 'left';
+      } else {
+        dir = action.target === 'opponent' ? 'left' : 'right';
+      }
+
+      setAimDirection(dir);
+      setShotEffect(action.isLive ? 'live' : 'blank');
+
+      if (action.isLive) {
+        soundManager.playGunshot();
+      } else {
+        soundManager.playBlankClick();
+      }
+
+      setTimeout(() => {
+        setAimDirection('');
+        setShotEffect('');
+      }, 700);
+    } else if (action.type === 'use_item') {
+      switch (action.itemKey) {
+        case ITEM_TYPES.GLASS: soundManager.playGlass(); break;
+        case ITEM_TYPES.CIGARETTE: soundManager.playCigarette(); break;
+        case ITEM_TYPES.BEER: soundManager.playBeer(); break;
+        case ITEM_TYPES.SAW: soundManager.playSaw(); break;
+        case ITEM_TYPES.PHONE: soundManager.playPhone(); break;
+        case ITEM_TYPES.INVERTER: soundManager.playInverter(); break;
+        default: break;
+      }
+    }
+  }, [gameState.lastAction, leftPlayer.socketId]);
 
   // Flash damage effect when HP drops
   useEffect(() => {
@@ -64,55 +110,23 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
 
   const handleShootSelf = () => {
     if (!canAct) return;
-    // Shooting Self:
-    // If Left player turn -> point left. If Right player turn -> point right.
-    const dir = isLeftTurn ? 'left' : 'right';
-    setAimDirection(dir);
-    soundManager.playRack();
-
-    setTimeout(() => {
-      onShoot('self');
-      setTimeout(() => {
-        setAimDirection('');
-      }, 700);
-    }, 250);
+    onShoot('self');
   };
 
   const handleShootOpponent = () => {
     if (!canAct) return;
-    // Shooting Opponent:
-    // If Left player turn -> point right. If Right player turn -> point left.
-    const dir = isLeftTurn ? 'right' : 'left';
-    setAimDirection(dir);
-    soundManager.playRack();
-
-    setTimeout(() => {
-      onShoot('opponent');
-      setTimeout(() => {
-        setAimDirection('');
-      }, 700);
-    }, 250);
+    onShoot('opponent');
   };
 
   const handleItemClick = (itemKey, index) => {
     if (!canAct) return;
 
-    // Sound FX
-    switch (itemKey) {
-      case ITEM_TYPES.GLASS: soundManager.playGlass(); break;
-      case ITEM_TYPES.CIGARETTE: soundManager.playCigarette(); break;
-      case ITEM_TYPES.BEER: soundManager.playBeer(); break;
-      case ITEM_TYPES.SAW: soundManager.playSaw(); break;
-      case ITEM_TYPES.PHONE: soundManager.playPhone(); break;
-      case ITEM_TYPES.INVERTER: soundManager.playInverter(); break;
-      case ITEM_TYPES.ADRENALINE:
-        if (activeOpponent.items && activeOpponent.items.length > 0 && activeOpponent.items[0] !== 'unknown') {
-          setAdrenalineItemIndex(index);
-          setShowAdrenalineModal(true);
-          return;
-        }
-        break;
-      default: break;
+    if (itemKey === ITEM_TYPES.ADRENALINE) {
+      if (activeOpponent.items && activeOpponent.items.length > 0 && activeOpponent.items[0] !== 'unknown') {
+        setAdrenalineItemIndex(index);
+        setShowAdrenalineModal(true);
+        return;
+      }
     }
 
     onUseItem(index);
@@ -154,15 +168,14 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
     return <div style={{ display: 'flex', gap: '4px' }}>{hearts}</div>;
   };
 
-  // Get inline transform for gun rotation
   const getGunTransform = () => {
     if (aimDirection === 'right') {
-      return 'rotate(180deg) scale(1.35)'; // Rotates 180° pointing RIGHT at Player 2
+      return 'rotate(180deg) scale(1.35)'; // Points RIGHT
     }
     if (aimDirection === 'left') {
-      return 'rotate(0deg) scale(1.35)'; // Rotates 0° pointing LEFT at Player 1
+      return 'rotate(0deg) scale(1.35)'; // Points LEFT
     }
-    return 'rotate(0deg) scale(1)'; // Neutral resting position
+    return 'rotate(0deg) scale(1)';
   };
 
   const getGunFilter = () => {
@@ -246,7 +259,7 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
 
           <div style={{ height: '1px', background: 'var(--panel-border)', margin: '4px 0' }} />
 
-          {/* LEFT PLAYER INVENTORY GRID */}
+          {/* LEFT PLAYER INVENTORY GRID (PUBLIC ITEMS FOR BOTH) */}
           <div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
               KHAY VẬT PHẨM:
@@ -361,7 +374,7 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
 
         </div>
 
-        {/* RIGHT PANEL: PLAYER 2 (FIXED POSITION ON RIGHT) */}
+        {/* RIGHT PANEL: PLAYER 2 (FIXED POSITION ON RIGHT - PUBLIC ITEMS) */}
         <div className={`player-side-card ${isRightTurn ? 'active-turn' : ''} ${p2Flash ? 'damage-flash' : ''}`}>
           <div className="avatar-box">
             <div className="avatar-icon opponent">💀</div>
@@ -388,7 +401,7 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, pri
 
           <div style={{ height: '1px', background: 'var(--panel-border)', margin: '4px 0' }} />
 
-          {/* RIGHT PLAYER INVENTORY GRID */}
+          {/* RIGHT PLAYER INVENTORY GRID (PUBLIC ITEMS FOR BOTH PLAYERS) */}
           <div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
               KHAY VẬT PHẨM:

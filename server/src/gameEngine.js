@@ -43,9 +43,10 @@ export class GameEngine {
       liveCount: 0,
       blankCount: 0,
       sawActive: false,
-      status: 'waiting', // waiting, playing, ended
+      status: 'waiting',
       winner: null,
-      logs: []
+      logs: [],
+      lastAction: null
     };
 
     this.rooms.set(code, room);
@@ -70,7 +71,6 @@ export class GameEngine {
       handcuffed: false
     });
 
-    // Start game
     this.startGame(room);
     return { room };
   }
@@ -100,7 +100,7 @@ export class GameEngine {
   startGame(room) {
     room.status = 'playing';
     room.round = 1;
-    room.turnIndex = Math.floor(Math.random() * 2); // Random starter
+    room.turnIndex = Math.floor(Math.random() * 2);
     const maxHp = 4;
     room.players.forEach(p => {
       p.maxHp = maxHp;
@@ -117,9 +117,8 @@ export class GameEngine {
     room.sawActive = false;
     room.currentIndex = 0;
 
-    // Determine shell counts (2 to 8 total)
-    const totalShells = Math.floor(Math.random() * 5) + 3; // 3 to 7 shells
-    let live = Math.floor(Math.random() * (totalShells - 1)) + 1; // At least 1 live
+    const totalShells = Math.floor(Math.random() * 5) + 3;
+    let live = Math.floor(Math.random() * (totalShells - 1)) + 1;
     let blank = totalShells - live;
     if (blank === 0) {
       blank = 1;
@@ -129,12 +128,10 @@ export class GameEngine {
     room.liveCount = live;
     room.blankCount = blank;
 
-    // Create array of shells
     const array = [];
     for (let i = 0; i < live; i++) array.push('live');
     for (let i = 0; i < blank; i++) array.push('blank');
 
-    // Fisher-Yates Shuffle
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
@@ -142,7 +139,6 @@ export class GameEngine {
 
     room.shells = array;
 
-    // Distribute 2-3 items to each player if inventory not full (max 8)
     const itemsPerPlayer = Math.floor(Math.random() * 2) + 2;
     room.players.forEach(p => {
       for (let i = 0; i < itemsPerPlayer; i++) {
@@ -171,13 +167,12 @@ export class GameEngine {
     if (nextPlayer.handcuffed) {
       nextPlayer.handcuffed = false;
       this.addLog(room, `⛓️ ${nextPlayer.nickname} đang bị CÒNG TAY! Mất lượt!`);
-      // Turn stays with current player
     } else {
       room.turnIndex = nextTurnIndex;
     }
   }
 
-  // Sanitized state for sending to specific socket
+  // Sanitized state - OPPONENT ITEMS ARE NOW 100% PUBLIC FOR BOTH PLAYERS!
   getSanitizedState(room, forSocketId) {
     return {
       code: room.code,
@@ -193,6 +188,7 @@ export class GameEngine {
       currentIndex: room.currentIndex,
       winner: room.winner,
       logs: room.logs,
+      lastAction: room.lastAction,
       players: room.players.map(p => ({
         socketId: p.socketId,
         nickname: p.nickname,
@@ -200,12 +196,11 @@ export class GameEngine {
         maxHp: p.maxHp,
         handcuffed: p.handcuffed,
         itemsCount: p.items.length,
-        items: p.socketId === forSocketId ? p.items : p.items.map(i => 'unknown') // Hide opponent items details or show open
+        items: [...p.items] // PUBLIC items for both players!
       }))
     };
   }
 
-  // Player action: shoot_self or shoot_opponent
   handleShoot(room, socketId, target) {
     const playerIndex = room.players.findIndex(p => p.socketId === socketId);
     if (playerIndex !== room.turnIndex || room.status !== 'playing') {
@@ -221,7 +216,6 @@ export class GameEngine {
     const damage = room.sawActive ? 2 : 1;
 
     room.currentIndex++;
-    const wasSawActive = room.sawActive;
     room.sawActive = false;
 
     let resultMsg = '';
@@ -233,13 +227,11 @@ export class GameEngine {
         resultType = 'self_live';
         resultMsg = `💥 ${shooter.nickname} tự bắn chính mình với viên THẬT! Mất ${damage} HP.`;
         this.addLog(room, resultMsg);
-        
         this.switchTurn(room);
       } else {
         resultType = 'self_blank';
         resultMsg = `💨 ${shooter.nickname} tự bắn chính mình với viên GIẢ! Được GIỮ LƯỢT!`;
         this.addLog(room, resultMsg);
-        // Player retains turn when shooting self with blank!
       }
     } else if (target === 'opponent') {
       if (isLive) {
@@ -255,7 +247,15 @@ export class GameEngine {
       this.switchTurn(room);
     }
 
-    // Check game over
+    // Record last action for real-time animation broadcast
+    room.lastAction = {
+      type: 'shoot',
+      actorSocketId: socketId,
+      target,
+      isLive,
+      timestamp: Date.now()
+    };
+
     if (shooter.hp <= 0 || opponent.hp <= 0) {
       room.status = 'ended';
       room.winner = shooter.hp > 0 ? shooter.socketId : opponent.socketId;
@@ -264,7 +264,6 @@ export class GameEngine {
       return { success: true, resultType, resultMsg };
     }
 
-    // Check if shells empty -> auto load new round
     if (room.currentIndex >= room.shells.length) {
       this.addLog(room, '⚡ Băng đạn đã hết! Đang nạp băng đạn mới...');
       this.loadNewRound(room);
@@ -273,7 +272,6 @@ export class GameEngine {
     return { success: true, resultType, resultMsg };
   }
 
-  // Player action: use item
   handleUseItem(room, socketId, itemIndex, extraTarget = null) {
     const playerIndex = room.players.findIndex(p => p.socketId === socketId);
     if (playerIndex !== room.turnIndex || room.status !== 'playing') {
@@ -288,7 +286,7 @@ export class GameEngine {
     }
 
     const itemKey = player.items[itemIndex];
-    player.items.splice(itemIndex, 1); // remove item
+    player.items.splice(itemIndex, 1);
 
     let privateFeedback = null;
     const currentShell = room.shells[room.currentIndex];
@@ -321,28 +319,19 @@ export class GameEngine {
       }
 
       case ITEM_TYPES.SAW: {
-        if (room.sawActive) {
-          this.addLog(room, `🪚 Nòng súng đã được cưa từ trước!`);
-        } else {
-          room.sawActive = true;
-          this.addLog(room, `🪚 ${player.nickname} đã cưa nòng súng! Phát bắn tiếp theo sẽ gây 2 DẠNG SÁT THƯƠNG!`);
-        }
+        room.sawActive = true;
+        this.addLog(room, `🪚 ${player.nickname} đã cưa nòng súng! Sát thương x2!`);
         break;
       }
 
       case ITEM_TYPES.HANDCUFFS: {
-        if (opponent.handcuffed) {
-          this.addLog(room, `⛓️ Đối thủ đã bị còng tay sẵn rồi!`);
-        } else {
-          opponent.handcuffed = true;
-          this.addLog(room, `⛓️ ${player.nickname} đã CÒNG TAY ${opponent.nickname}! Đối thủ sẽ mất lượt tiếp theo.`);
-        }
+        opponent.handcuffed = true;
+        this.addLog(room, `⛓️ ${player.nickname} đã CÒNG TAY ${opponent.nickname}! Đối thủ sẽ mất lượt tiếp theo.`);
         break;
       }
 
       case ITEM_TYPES.INVERTER: {
-        const newShell = currentShell === 'live' ? 'blank' : 'live';
-        room.shells[room.currentIndex] = newShell;
+        room.shells[room.currentIndex] = currentShell === 'live' ? 'blank' : 'live';
         this.addLog(room, `🔄 ${player.nickname} dùng Đầu Chuyển để thay đổi trạng thái viên đạn hiện tại!`);
         break;
       }
@@ -353,8 +342,7 @@ export class GameEngine {
           privateFeedback = `📞 Điện thoại báo: "Không còn viên đạn tương lai nào để kiểm tra."`;
           this.addLog(room, `📞 ${player.nickname} dùng Điện thoại nhưng không có thêm thông tin.`);
         } else {
-          // Pick a random future index
-          const offset = Math.floor(Math.random() * (remaining - 1)) + 1; // 1 to remaining-1
+          const offset = Math.floor(Math.random() * (remaining - 1)) + 1;
           const futureIndex = room.currentIndex + offset;
           const futureShell = room.shells[futureIndex];
           privateFeedback = `📞 Điện thoại báo: "Viên đạn thứ ${offset + 1} tính từ hiện tại là ${futureShell === 'live' ? 'ĐẠN THẬT (ĐỎ)' : 'ĐẠN GIẢ (XANH)'}."`;
@@ -381,22 +369,29 @@ export class GameEngine {
         const isHeal = Math.random() < 0.5;
         if (isHeal) {
           player.hp = Math.min(player.maxHp, player.hp + 2);
-          this.addLog(room, `💊 ${player.nickname} dùng Thuốc Hết Hạn và HỒI THÀNH CÔNG 2 HP! (HP: ${player.hp}/${player.maxHp})`);
+          this.addLog(room, `💊 ${player.nickname} dùng Thuốc Hết Hạn HỒI THÀNH CÔNG 2 HP! (HP: ${player.hp}/${player.maxHp})`);
         } else {
           player.hp = Math.max(0, player.hp - 1);
-          this.addLog(room, `💊 ${player.nickname} dùng Thuốc Hết Hạn bị NGỘ ĐỘC và mất 1 HP! (HP: ${player.hp}/${player.maxHp})`);
+          this.addLog(room, `💊 ${player.nickname} dùng Thuốc Hết Hạn BỊ NGỘ ĐỘC mất 1 HP! (HP: ${player.hp}/${player.maxHp})`);
           if (player.hp <= 0) {
             room.status = 'ended';
             room.winner = opponent.socketId;
-            this.addLog(room, `🏆 TRẬN ĐẤU KẾT THÚC! ${opponent.nickname} WIN do đối thủ tử vong vì ngộ độc!`);
+            this.addLog(room, `🏆 TRẬN ĐẤU KẾT THÚC! ${opponent.nickname} CHIẾN THẮNG do đối thủ tử vong vì ngộ độc!`);
           }
         }
         break;
       }
 
-      default:
-        break;
+      default: break;
     }
+
+    // Record last action for real-time animation broadcast
+    room.lastAction = {
+      type: 'use_item',
+      actorSocketId: socketId,
+      itemKey,
+      timestamp: Date.now()
+    };
 
     return { success: true, privateFeedback };
   }

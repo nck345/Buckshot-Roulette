@@ -20,7 +20,8 @@ export class LocalGameEngine {
       blankCount: 0,
       sawActive: false,
       winner: null,
-      logs: []
+      logs: [],
+      lastAction: null
     };
 
     this.startGame();
@@ -45,7 +46,7 @@ export class LocalGameEngine {
     this.room.sawActive = false;
     this.room.currentIndex = 0;
 
-    const totalShells = Math.floor(Math.random() * 5) + 3; // 3 to 7 shells
+    const totalShells = Math.floor(Math.random() * 5) + 3;
     let live = Math.floor(Math.random() * (totalShells - 1)) + 1;
     let blank = totalShells - live;
     if (blank === 0) { blank = 1; live--; }
@@ -112,6 +113,7 @@ export class LocalGameEngine {
       currentIndex: this.room.currentIndex,
       winner: this.room.winner,
       logs: [...this.room.logs],
+      lastAction: this.room.lastAction,
       players: this.room.players.map(p => ({
         socketId: p.socketId,
         nickname: p.nickname,
@@ -152,6 +154,14 @@ export class LocalGameEngine {
       }
       this.switchTurn();
     }
+
+    this.room.lastAction = {
+      type: 'shoot',
+      actorSocketId: shooter.socketId,
+      target,
+      isLive,
+      timestamp: Date.now()
+    };
 
     if (shooter.hp <= 0 || opponent.hp <= 0) {
       this.room.status = 'ended';
@@ -255,6 +265,13 @@ export class LocalGameEngine {
       }
       default: break;
     }
+
+    this.room.lastAction = {
+      type: 'use_item',
+      actorSocketId: player.socketId,
+      itemKey,
+      timestamp: Date.now()
+    };
 
     return { state: this.getState(), privateFeedback };
   }
