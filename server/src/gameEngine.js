@@ -34,7 +34,8 @@ export class GameEngine {
           hp: 4,
           maxHp: 4,
           items: [],
-          handcuffed: false
+          handcuffed: false,
+          mirrorActive: false
         }
       ],
       turnIndex: 0,
@@ -44,6 +45,8 @@ export class GameEngine {
       liveCount: 0,
       blankCount: 0,
       sawActive: false,
+      contractActive: false,
+      lockActive: false,
       status: 'waiting',
       winner: null,
       logs: [],
@@ -69,7 +72,8 @@ export class GameEngine {
       hp: 4,
       maxHp: 4,
       items: [],
-      handcuffed: false
+      handcuffed: false,
+      mirrorActive: false
     });
 
     this.startGame(room);
@@ -94,6 +98,8 @@ export class GameEngine {
           room.winner = null;
           room.currentIndex = 0;
           room.sawActive = false;
+          room.contractActive = false;
+          room.lockActive = false;
           room.lastAction = null;
           room.logs = [];
           this.addLog(room, `⚠️ ${leavingPlayer.nickname} đã thoát phòng. Đang chờ người chơi mới...`);
@@ -125,6 +131,7 @@ export class GameEngine {
       p.hp = startHp;
       p.items = [];
       p.handcuffed = false;
+      p.mirrorActive = false;
     });
 
     this.loadNewRound(room, true);
@@ -133,6 +140,8 @@ export class GameEngine {
   loadNewRound(room, isGameStart = false) {
     room.logs = [];
     room.sawActive = false;
+    room.contractActive = false;
+    room.lockActive = false;
     room.currentIndex = 0;
 
     const totalShells = Math.floor(Math.random() * 5) + 3;
@@ -158,6 +167,7 @@ export class GameEngine {
     room.shells = array;
 
     room.players.forEach(p => {
+      p.mirrorActive = false;
       let countToGive = 0;
 
       if (isGameStart) {
@@ -168,12 +178,11 @@ export class GameEngine {
           countToGive = Math.floor(Math.random() * 3);
         }
       } else {
-        // IF RELOAD ITEMS IS BLANK: DEFAULT TO RANDOM 0 TO 2 ITEMS!
         if (room.config?.reloadItems !== '' && room.config?.reloadItems !== undefined) {
           countToGive = parseInt(room.config.reloadItems);
           if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 3);
         } else {
-          countToGive = Math.floor(Math.random() * 3); // Random 0 to 2
+          countToGive = Math.floor(Math.random() * 3);
         }
       }
 
@@ -223,6 +232,8 @@ export class GameEngine {
       turnSocketId: room.players[room.turnIndex]?.socketId,
       isMyTurn: room.players[room.turnIndex]?.socketId === forSocketId,
       sawActive: room.sawActive,
+      contractActive: room.contractActive,
+      lockActive: room.lockActive,
       liveCount: room.liveCount,
       blankCount: room.blankCount,
       totalShellsRemaining: room.shells.length - room.currentIndex,
@@ -236,6 +247,7 @@ export class GameEngine {
         hp: p.hp,
         maxHp: p.maxHp,
         handcuffed: p.handcuffed,
+        mirrorActive: p.mirrorActive,
         itemsCount: p.items.length,
         items: [...p.items]
       }))
@@ -254,38 +266,65 @@ export class GameEngine {
 
     const currentShell = room.shells[room.currentIndex];
     const isLive = currentShell === 'live';
-    const damage = room.sawActive ? 2 : 1;
 
     room.currentIndex++;
-    room.sawActive = false;
 
     let resultMsg = '';
     let resultType = '';
 
-    if (target === 'self') {
+    // Handle Safety Lock
+    if (room.lockActive) {
+      room.lockActive = false;
+      room.sawActive = false;
+      room.contractActive = false;
+      resultType = 'lock_safe';
+      resultMsg = `🔒 Khóa nòng nổ lách cách! Viên đạn (${isLive ? 'THẬT' : 'GIẢ'}) được xả bỏ an toàn không mất HP.`;
+      this.addLog(room, resultMsg);
+      this.switchTurn(room);
+    } else {
+      const isContract = room.contractActive;
+      room.contractActive = false;
+
+      let damage = (room.sawActive ? 2 : 1) + (isContract && isLive ? 1 : 0);
+      room.sawActive = false;
+
+      let actualTargetPlayer = target === 'self' ? shooter : opponent;
+      let isReflected = false;
+
+      if (target === 'opponent' && opponent.mirrorActive) {
+        opponent.mirrorActive = false;
+        actualTargetPlayer = shooter;
+        isReflected = true;
+        this.addLog(room, `🪞 Gương Phản Xạ phát huy tác dụng! Phát bắn của ${shooter.nickname} bị BẬT NGƯỢC LẠI!`);
+      }
+
       if (isLive) {
-        shooter.hp = Math.max(0, shooter.hp - damage);
-        resultType = 'self_live';
-        resultMsg = `💥 ${shooter.nickname} tự bắn mình bằng ĐẠN THẬT! Mất ${damage} HP.`;
+        actualTargetPlayer.hp = Math.max(0, actualTargetPlayer.hp - damage);
+        resultType = target === 'self' ? 'self_live' : 'opponent_live';
+        if (isReflected) {
+          resultMsg = `💥 Phát bắn bị phản ngược! ${shooter.nickname} chịu ${damage} HP sát thương!`;
+        } else {
+          resultMsg = `💥 ${shooter.nickname} bắn ${actualTargetPlayer.nickname} bằng ĐẠN THẬT! Gây ${damage} HP sát thương!`;
+        }
         this.addLog(room, resultMsg);
         this.switchTurn(room);
       } else {
-        resultType = 'self_blank';
-        resultMsg = `💨 ${shooter.nickname} tự bắn mình bằng ĐẠN GIẢ! Được GIỮ LƯỢT!`;
-        this.addLog(room, resultMsg);
+        if (isContract) {
+          shooter.hp = Math.max(0, shooter.hp - 1);
+          this.addLog(room, `💥 Đạn GIẢ! Nhưng Hợp Đồng Đặt Cược phạt ${shooter.nickname} mất 1 HP!`);
+        }
+
+        if (target === 'self' && !isReflected) {
+          resultType = 'self_blank';
+          resultMsg = `💨 ${shooter.nickname} tự bắn mình bằng ĐẠN GIẢ! Được GIỮ LƯỢT!`;
+          this.addLog(room, resultMsg);
+        } else {
+          resultType = 'opponent_blank';
+          resultMsg = `💨 ${shooter.nickname} bắn bằng ĐẠN GIẢ! Không có sát thương.`;
+          this.addLog(room, resultMsg);
+          this.switchTurn(room);
+        }
       }
-    } else if (target === 'opponent') {
-      if (isLive) {
-        opponent.hp = Math.max(0, opponent.hp - damage);
-        resultType = 'opponent_live';
-        resultMsg = `💥 ${shooter.nickname} bắn ${opponent.nickname} bằng ĐẠN THẬT! Gây ${damage} HP sát thương!`;
-        this.addLog(room, resultMsg);
-      } else {
-        resultType = 'opponent_blank';
-        resultMsg = `💨 ${shooter.nickname} bắn ${opponent.nickname} bằng ĐẠN GIẢ! Không có sát thương.`;
-        this.addLog(room, resultMsg);
-      }
-      this.switchTurn(room);
     }
 
     room.lastAction = {
@@ -424,6 +463,67 @@ export class GameEngine {
             room.winner = opponent.socketId;
             this.addLog(room, `🏆 TRẬN ĐẤU KẾT THÚC! ${opponent.nickname} CHIẾN THẮNG!`);
           }
+        }
+        break;
+      }
+
+      case ITEM_TYPES.MIRROR: {
+        player.mirrorActive = true;
+        this.addLog(room, `🪞 ${player.nickname} đặt Gương Phản Xạ bảo vệ bản thân!`);
+        break;
+      }
+
+      case ITEM_TYPES.CONTRACT: {
+        room.contractActive = true;
+        this.addLog(room, `📜 ${player.nickname} kích hoạt Hợp Đồng Đặt Cược! (+1 dame nếu Thật, phạt 1 HP nếu Giả)`);
+        break;
+      }
+
+      case ITEM_TYPES.BLEACH: {
+        if (opponent.items.length === 0) {
+          this.addLog(room, `🧪 ${player.nickname} dùng Nước Axit nhưng đối thủ không có vật phẩm nào!`);
+        } else {
+          let chosenIndex = 0;
+          if (extraTarget !== null && extraTarget >= 0 && extraTarget < opponent.items.length) {
+            chosenIndex = extraTarget;
+          }
+          const destroyedItem = opponent.items.splice(chosenIndex, 1)[0];
+          this.addLog(room, `🧪 ${player.nickname} dùng Nước Axit tiêu hủy ${ITEMS_INFO[destroyedItem]?.nameVi || destroyedItem} của ${opponent.nickname}!`);
+        }
+        break;
+      }
+
+      case ITEM_TYPES.MAGNET: {
+        let liveCount = 0;
+        let blankCount = 0;
+        for (let i = room.currentIndex; i < room.shells.length; i++) {
+          if (room.shells[i] === 'live') liveCount++;
+          else blankCount++;
+        }
+        privateFeedback = `🧲 Nam Châm Đếm Đạn: Còn ${liveCount} ĐẠN THẬT (ĐỎ) và ${blankCount} ĐẠN GIẢ (XANH) trong súng!`;
+        this.addLog(room, `🧲 ${player.nickname} dùng Nam Châm quét số lượng đạn trong súng.`);
+        break;
+      }
+
+      case ITEM_TYPES.LOCK: {
+        room.lockActive = true;
+        this.addLog(room, `🔒 ${player.nickname} bật Khóa Nòng An Toàn! Phát bắn tiếp theo sẽ bị khóa an toàn.`);
+        break;
+      }
+
+      case ITEM_TYPES.SWAP: {
+        const remaining = room.shells.length - room.currentIndex;
+        if (remaining <= 1) {
+          privateFeedback = `🔀 Kìm Gắp Đạn: Không còn viên đạn nào khác trong nòng để hoán đổi.`;
+          this.addLog(room, `🔀 ${player.nickname} dùng Kìm Gắp Đạn nhưng súng chỉ còn 1 viên.`);
+        } else {
+          let offset = 1;
+          if (extraTarget !== null && typeof extraTarget === 'number' && extraTarget >= 1 && extraTarget < remaining) {
+            offset = extraTarget;
+          }
+          const swapIndex = room.currentIndex + offset;
+          [room.shells[room.currentIndex], room.shells[swapIndex]] = [room.shells[swapIndex], room.shells[room.currentIndex]];
+          this.addLog(room, `🔀 ${player.nickname} dùng Kìm Gắp Đạn tráo đổi viên đạn hiện tại với viên thứ ${offset + 1}!`);
         }
         break;
       }

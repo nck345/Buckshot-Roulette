@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Crosshair, UserCheck, Copy, Check, Eye, LogOut, Terminal } from 'lucide-react';
 import AdrenalineModal from './AdrenalineModal';
+import BleachModal from './BleachModal';
+import SwapModal from './SwapModal';
 import { soundManager } from '../audio/soundManager';
 import { ITEMS_INFO, ITEM_TYPES } from '../utils/items';
 
@@ -9,6 +11,12 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
   const [showAdrenalineModal, setShowAdrenalineModal] = useState(false);
   const [adrenalineItemIndex, setAdrenalineItemIndex] = useState(null);
   
+  const [showBleachModal, setShowBleachModal] = useState(false);
+  const [bleachItemIndex, setBleachItemIndex] = useState(null);
+
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapItemIndex, setSwapItemIndex] = useState(null);
+
   // Aim & Shot animation states: 'left', 'right', or ''
   const [aimDirection, setAimDirection] = useState('');
   const [shotEffect, setShotEffect] = useState(''); // 'live', 'blank', or ''
@@ -135,12 +143,38 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
       }
     }
 
+    if (itemKey === ITEM_TYPES.BLEACH) {
+      if (activeOpponent.items && activeOpponent.items.length > 0 && activeOpponent.items[0] !== 'unknown') {
+        setBleachItemIndex(index);
+        setShowBleachModal(true);
+        return;
+      }
+    }
+
+    if (itemKey === ITEM_TYPES.SWAP) {
+      if (gameState.totalShellsRemaining > 1) {
+        setSwapItemIndex(index);
+        setShowSwapModal(true);
+        return;
+      }
+    }
+
     onUseItem(index);
   };
 
   const handleSelectStealItem = (stealIdx) => {
     setShowAdrenalineModal(false);
     onUseItem(adrenalineItemIndex, stealIdx);
+  };
+
+  const handleSelectBleachItem = (bleachIdx) => {
+    setShowBleachModal(false);
+    onUseItem(bleachItemIndex, bleachIdx);
+  };
+
+  const handleSelectSwapOffset = (offset) => {
+    setShowSwapModal(false);
+    onUseItem(swapItemIndex, offset);
   };
 
   const copyRoomLink = () => {
@@ -295,6 +329,12 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
             </div>
           )}
 
+          {leftPlayer.mirrorActive && (
+            <div style={{ background: 'rgba(0, 229, 255, 0.2)', border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)', padding: '4px', textAlign: 'center', borderRadius: '4px', fontSize: '0.8rem', marginTop: '4px' }}>
+              🪞 ĐANG ĐẶT GƯƠNG PHẢN XẠ
+            </div>
+          )}
+
           <div style={{ height: '1px', background: 'var(--panel-border)', margin: '4px 0' }} />
 
           {/* LEFT PLAYER INVENTORY GRID */}
@@ -356,6 +396,41 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
               animation: 'pulse 1s infinite'
             }}>
               🪚 NÒNG SÚNG ĐÃ CƯA (SÁT THƯƠNG x2)
+            </div>
+          )}
+
+          {/* Contract Indicator */}
+          {gameState.contractActive && (
+            <div style={{
+              background: 'rgba(255, 214, 10, 0.25)',
+              border: '1px solid var(--accent-gold)',
+              color: 'var(--accent-gold)',
+              padding: '4px 14px',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              letterSpacing: '1px',
+              marginTop: '4px',
+              animation: 'pulse 1s infinite'
+            }}>
+              📜 HỢP ĐỒNG ĐẶT CƯỢC (+1 DAME / PHẠT 1 HP)
+            </div>
+          )}
+
+          {/* Safety Lock Indicator */}
+          {gameState.lockActive && (
+            <div style={{
+              background: 'rgba(0, 229, 255, 0.25)',
+              border: '1px solid var(--accent-cyan)',
+              color: 'var(--accent-cyan)',
+              padding: '4px 14px',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              letterSpacing: '1px',
+              marginTop: '4px'
+            }}>
+              🔒 KHÓA NÒNG AN TOÀN ĐANG BẬT
             </div>
           )}
 
@@ -463,6 +538,12 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
             </div>
           )}
 
+          {rightPlayer.mirrorActive && (
+            <div style={{ background: 'rgba(0, 229, 255, 0.2)', border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)', padding: '4px', textAlign: 'center', borderRadius: '4px', fontSize: '0.8rem', marginTop: '4px' }}>
+              🪞 ĐANG ĐẶT GƯƠNG PHẢN XẠ
+            </div>
+          )}
+
           <div style={{ height: '1px', background: 'var(--panel-border)', margin: '4px 0' }} />
 
           {/* RIGHT PLAYER INVENTORY GRID */}
@@ -509,6 +590,24 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
           opponentItems={activeOpponent.items || []}
           onSelect={handleSelectStealItem}
           onClose={() => setShowAdrenalineModal(false)}
+        />
+      )}
+
+      {/* Bleach Destroy Modal */}
+      {showBleachModal && (
+        <BleachModal
+          opponentItems={activeOpponent.items || []}
+          onSelect={handleSelectBleachItem}
+          onClose={() => setShowBleachModal(false)}
+        />
+      )}
+
+      {/* Swap Bullet Modal */}
+      {showSwapModal && (
+        <SwapModal
+          remainingBulletsCount={gameState.totalShellsRemaining || 0}
+          onSelect={handleSelectSwapOffset}
+          onClose={() => setShowSwapModal(false)}
         />
       )}
     </div>

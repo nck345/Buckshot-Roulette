@@ -8,7 +8,13 @@ export const ITEM_TYPES = {
   INVERTER: 'inverter',
   PHONE: 'phone',
   ADRENALINE: 'adrenaline',
-  EXPIRED_MEDICINE: 'expired_medicine'
+  EXPIRED_MEDICINE: 'expired_medicine',
+  MIRROR: 'mirror',
+  CONTRACT: 'contract',
+  BLEACH: 'bleach',
+  MAGNET: 'magnet',
+  LOCK: 'lock',
+  SWAP: 'swap'
 };
 
 export const ITEMS_INFO = {
@@ -74,5 +80,47 @@ export const ITEMS_INFO = {
     nameVi: 'Thuốc Hết Hạn',
     icon: '💊',
     description: '50% cơ hội hồi 2 HP, 50% cơ hội bị ngộ độc mất 1 HP.'
+  },
+  mirror: {
+    id: 'mirror',
+    name: 'Tactical Mirror',
+    nameVi: 'Gương Phản Xạ',
+    icon: '🪞',
+    description: 'Đặt gương bảo vệ. Nếu đối thủ bắn bạn ở lượt tới, sát thương sẽ phản ngược lại đối thủ.'
+  },
+  contract: {
+    id: 'contract',
+    name: 'Devil\'s Contract',
+    nameVi: 'Hợp Đồng Đặt Cược',
+    icon: '📜',
+    description: 'Bắn đạn THẬT gây thêm +1 HP sát thương. Bắn nhầm đạn GIẢ tự phạt mất 1 HP.'
+  },
+  bleach: {
+    id: 'bleach',
+    name: 'Acid Bleach',
+    nameVi: 'Nước Axit Tẩy Đồ',
+    icon: '🧪',
+    description: 'Chọn 1 vật phẩm trên khay đồ của đối thủ và phá hủy nó.'
+  },
+  magnet: {
+    id: 'magnet',
+    name: 'Bullet Radar',
+    nameVi: 'Nam Châm Đếm Đạn',
+    icon: '🧲',
+    description: 'Quét nòng súng cho biết số lượng đạn THẬT và GIẢ còn lại trong băng.'
+  },
+  lock: {
+    id: 'lock',
+    name: 'Safety Lock',
+    nameVi: 'Khóa Nòng An Toàn',
+    icon: '🔒',
+    description: 'Khóa súng 1 phát bắn. Bóp cò sẽ xả đạn an toàn không mất HP.'
+  },
+  swap: {
+    id: 'swap',
+    name: 'Bullet Swap',
+    nameVi: 'Kìm Gắp Đạn',
+    icon: '🔀',
+    description: 'Hoán đổi vị trí viên đạn hiện tại với 1 viên đạn tương lai trong súng.'
   }
 };

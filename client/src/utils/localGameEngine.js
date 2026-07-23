@@ -12,14 +12,16 @@ export class LocalGameEngine {
       round: 1,
       turnIndex: 0,
       players: [
-        { socketId: 'p1', nickname: p1Name, hp: 4, maxHp: 4, items: [], handcuffed: false },
-        { socketId: 'p2', nickname: p2Name, hp: 4, maxHp: 4, items: [], handcuffed: false }
+        { socketId: 'p1', nickname: p1Name, hp: 4, maxHp: 4, items: [], handcuffed: false, mirrorActive: false },
+        { socketId: 'p2', nickname: p2Name, hp: 4, maxHp: 4, items: [], handcuffed: false, mirrorActive: false }
       ],
       shells: [],
       currentIndex: 0,
       liveCount: 0,
       blankCount: 0,
       sawActive: false,
+      contractActive: false,
+      lockActive: false,
       winner: null,
       logs: [],
       lastAction: null
@@ -43,6 +45,7 @@ export class LocalGameEngine {
       p.hp = startHp;
       p.items = [];
       p.handcuffed = false;
+      p.mirrorActive = false;
     });
 
     this.loadNewRound(true);
@@ -51,6 +54,8 @@ export class LocalGameEngine {
   loadNewRound(isGameStart = false) {
     this.room.logs = [];
     this.room.sawActive = false;
+    this.room.contractActive = false;
+    this.room.lockActive = false;
     this.room.currentIndex = 0;
 
     const totalShells = Math.floor(Math.random() * 5) + 3;
@@ -73,6 +78,7 @@ export class LocalGameEngine {
     this.room.shells = array;
 
     this.room.players.forEach(p => {
+      p.mirrorActive = false;
       let countToGive = 0;
 
       if (isGameStart) {
@@ -83,12 +89,11 @@ export class LocalGameEngine {
           countToGive = Math.floor(Math.random() * 3);
         }
       } else {
-        // IF RELOAD ITEMS IS BLANK: DEFAULT TO RANDOM 0 TO 2 ITEMS!
         if (this.config?.reloadItems !== '' && this.config?.reloadItems !== undefined) {
           countToGive = parseInt(this.config.reloadItems);
           if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 3);
         } else {
-          countToGive = Math.floor(Math.random() * 3); // Random 0 to 2
+          countToGive = Math.floor(Math.random() * 3);
         }
       }
 
@@ -138,6 +143,8 @@ export class LocalGameEngine {
       turnIndex: this.room.turnIndex,
       turnSocketId: activeSocketId,
       sawActive: this.room.sawActive,
+      contractActive: this.room.contractActive,
+      lockActive: this.room.lockActive,
       liveCount: this.room.liveCount,
       blankCount: this.room.blankCount,
       totalShellsRemaining: this.room.shells.length - this.room.currentIndex,
@@ -151,6 +158,7 @@ export class LocalGameEngine {
         hp: p.hp,
         maxHp: p.maxHp,
         handcuffed: p.handcuffed,
+        mirrorActive: p.mirrorActive,
         itemsCount: p.items.length,
         items: [...p.items]
       }))
@@ -163,27 +171,53 @@ export class LocalGameEngine {
 
     const currentShell = this.room.shells[this.room.currentIndex];
     const isLive = currentShell === 'live';
-    const damage = this.room.sawActive ? 2 : 1;
 
     this.room.currentIndex++;
-    this.room.sawActive = false;
 
-    if (target === 'self') {
+    if (this.room.lockActive) {
+      this.room.lockActive = false;
+      this.room.sawActive = false;
+      this.room.contractActive = false;
+      this.addLog(`🔒 Khóa nòng nổ lách cách! Viên đạn (${isLive ? 'THẬT' : 'GIẢ'}) được xả bỏ an toàn không mất HP.`);
+      this.switchTurn();
+    } else {
+      const isContract = this.room.contractActive;
+      this.room.contractActive = false;
+
+      let damage = (this.room.sawActive ? 2 : 1) + (isContract && isLive ? 1 : 0);
+      this.room.sawActive = false;
+
+      let actualTargetPlayer = target === 'self' ? shooter : opponent;
+      let isReflected = false;
+
+      if (target === 'opponent' && opponent.mirrorActive) {
+        opponent.mirrorActive = false;
+        actualTargetPlayer = shooter;
+        isReflected = true;
+        this.addLog(`🪞 Gương Phản Xạ phát huy tác dụng! Phát bắn của ${shooter.nickname} bị BẬT NGƯỢC LẠI!`);
+      }
+
       if (isLive) {
-        shooter.hp = Math.max(0, shooter.hp - damage);
-        this.addLog(`💥 ${shooter.nickname} tự bắn mình bằng ĐẠN THẬT! Mất ${damage} HP.`);
+        actualTargetPlayer.hp = Math.max(0, actualTargetPlayer.hp - damage);
+        if (isReflected) {
+          this.addLog(`💥 Phát bắn bị phản ngược! ${shooter.nickname} chịu ${damage} HP sát thương!`);
+        } else {
+          this.addLog(`💥 ${shooter.nickname} bắn ${actualTargetPlayer.nickname} bằng ĐẠN THẬT! Gây ${damage} HP sát thương!`);
+        }
         this.switchTurn();
       } else {
-        this.addLog(`💨 ${shooter.nickname} tự bắn mình bằng ĐẠN GIẢ! Được GIỮ LƯỢT!`);
+        if (isContract) {
+          shooter.hp = Math.max(0, shooter.hp - 1);
+          this.addLog(`💥 Đạn GIẢ! Nhưng Hợp Đồng Đặt Cược phạt ${shooter.nickname} mất 1 HP!`);
+        }
+
+        if (target === 'self' && !isReflected) {
+          this.addLog(`💨 ${shooter.nickname} tự bắn mình bằng ĐẠN GIẢ! Được GIỮ LƯỢT!`);
+        } else {
+          this.addLog(`💨 ${shooter.nickname} bắn bằng ĐẠN GIẢ! Không có sát thương.`);
+          this.switchTurn();
+        }
       }
-    } else if (target === 'opponent') {
-      if (isLive) {
-        opponent.hp = Math.max(0, opponent.hp - damage);
-        this.addLog(`💥 ${shooter.nickname} bắn ${opponent.nickname} bằng ĐẠN THẬT! Gây ${damage} HP sát thương!`);
-      } else {
-        this.addLog(`💨 ${shooter.nickname} bắn ${opponent.nickname} bằng ĐẠN GIẢ! Không có sát thương.`);
-      }
-      this.switchTurn();
     }
 
     this.room.lastAction = {
@@ -298,6 +332,61 @@ export class LocalGameEngine {
             this.room.winner = opponent.socketId;
             this.addLog(`🏆 TRẬN ĐẤU KẾT THÚC! ${opponent.nickname} CHIẾN THẮNG!`);
           }
+        }
+        break;
+      }
+      case ITEM_TYPES.MIRROR: {
+        player.mirrorActive = true;
+        this.addLog(`🪞 ${player.nickname} đặt Gương Phản Xạ bảo vệ bản thân!`);
+        break;
+      }
+      case ITEM_TYPES.CONTRACT: {
+        this.room.contractActive = true;
+        this.addLog(`📜 ${player.nickname} kích hoạt Hợp Đồng Đặt Cược! (+1 dame nếu Thật, phạt 1 HP nếu Giả)`);
+        break;
+      }
+      case ITEM_TYPES.BLEACH: {
+        if (opponent.items.length === 0) {
+          this.addLog(`🧪 ${player.nickname} dùng Nước Axit nhưng đối thủ không có vật phẩm nào!`);
+        } else {
+          let chosenIndex = 0;
+          if (extraTarget !== null && extraTarget >= 0 && extraTarget < opponent.items.length) {
+            chosenIndex = extraTarget;
+          }
+          const destroyedItem = opponent.items.splice(chosenIndex, 1)[0];
+          this.addLog(`🧪 ${player.nickname} dùng Nước Axit tiêu hủy ${ITEMS_INFO[destroyedItem]?.nameVi || destroyedItem}!`);
+        }
+        break;
+      }
+      case ITEM_TYPES.MAGNET: {
+        let liveCount = 0;
+        let blankCount = 0;
+        for (let i = this.room.currentIndex; i < this.room.shells.length; i++) {
+          if (this.room.shells[i] === 'live') liveCount++;
+          else blankCount++;
+        }
+        privateFeedback = `🧲 MẬT (Nam Châm): Còn ${liveCount} ĐẠN THẬT (ĐỎ) và ${blankCount} ĐẠN GIẢ (XANH) trong nòng súng!`;
+        this.addLog(`🧲 ${player.nickname} dùng Nam Châm quét số lượng đạn trong súng.`);
+        break;
+      }
+      case ITEM_TYPES.LOCK: {
+        this.room.lockActive = true;
+        this.addLog(`🔒 ${player.nickname} bật Khóa Nòng An Toàn! Phát bắn tiếp theo sẽ bị khóa an toàn.`);
+        break;
+      }
+      case ITEM_TYPES.SWAP: {
+        const remaining = this.room.shells.length - this.room.currentIndex;
+        if (remaining <= 1) {
+          privateFeedback = `🔀 Kìm Gắp Đạn: Không còn viên đạn nào khác trong nòng để hoán đổi.`;
+          this.addLog(`🔀 ${player.nickname} dùng Kìm Gắp Đạn nhưng súng chỉ còn 1 viên.`);
+        } else {
+          let offset = 1;
+          if (extraTarget !== null && typeof extraTarget === 'number' && extraTarget >= 1 && extraTarget < remaining) {
+            offset = extraTarget;
+          }
+          const swapIndex = this.room.currentIndex + offset;
+          [this.room.shells[this.room.currentIndex], this.room.shells[swapIndex]] = [this.room.shells[swapIndex], this.room.shells[this.room.currentIndex]];
+          this.addLog(`🔀 ${player.nickname} dùng Kìm Gắp Đạn tráo đổi viên đạn hiện tại với viên thứ ${offset + 1}!`);
         }
         break;
       }
