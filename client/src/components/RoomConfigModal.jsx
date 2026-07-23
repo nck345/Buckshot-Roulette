@@ -4,10 +4,11 @@ import { Settings, Play, X } from 'lucide-react';
 export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌNH PHÒNG CHƠI" }) {
   const [initialHp, setInitialHp] = useState('');
   const [initialItems, setInitialItems] = useState('');
+  const [reloadItems, setReloadItems] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onConfirm(initialHp, initialItems);
+    onConfirm(initialHp, initialItems, reloadItems);
   };
 
   return (
@@ -22,7 +23,7 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
       zIndex: 10000,
       padding: '20px'
     }}>
-      <div className="cyber-card" style={{ maxWidth: '460px', width: '100%', padding: '30px' }}>
+      <div className="cyber-card" style={{ maxWidth: '480px', width: '100%', padding: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 'bold' }}>
             <Settings size={20} />
@@ -33,10 +34,10 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-cyan)', marginBottom: '6px' }}>
-              ❤️ Lượng máu ban đầu (Initial HP - Không giới hạn):
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-cyan)', marginBottom: '4px' }}>
+              ❤️ Lượng máu ban đầu (Initial HP):
             </label>
             <input
               type="number"
@@ -45,12 +46,12 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
               onChange={(e) => setInitialHp(e.target.value)}
               placeholder="Để trống = Ngẫu nhiên từ 3 đến 6 HP..."
               min={1}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-gold)', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-gold)', marginBottom: '4px' }}>
               📦 Lượng vật phẩm (Đồ) ban đầu:
             </label>
             <input
@@ -61,15 +62,31 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
               placeholder="Để trống = Ngẫu nhiên từ 0 đến 2 đồ..."
               min={0}
               max={8}
-              style={{ fontSize: '0.9rem' }}
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#ff6b6b', marginBottom: '4px' }}>
+              🔄 Số đồ cộng thêm mỗi lần nạp lại đạn:
+            </label>
+            <input
+              type="number"
+              className="cyber-input"
+              value={reloadItems}
+              onChange={(e) => setReloadItems(e.target.value)}
+              placeholder="Để trống = Ngẫu nhiên từ 2 đến 3 đồ..."
+              min={0}
+              max={8}
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
 
           <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '10px 12px', borderRadius: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-            ℹ️ <strong>Quy tắc:</strong> Bạn có thể tùy chỉnh lượng máu bất kỳ (không giới hạn). Nếu để trống, game sẽ ngẫu nhiên máu (3-6) & vật phẩm (0-2) ở Round 1. Các round nạp đạn tiếp theo sẽ cộng ngẫu nhiên thêm 2-3 vật phẩm mới.
+            ℹ️ <strong>Mặc định nếu để trống:</strong> Máu ngẫu nhiên (3-6), Đồ ban đầu (0-2), và cộng ngẫu nhiên 2-3 đồ ở mỗi đợt nạp đạn tiếp theo.
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '6px' }}>
             <button type="button" className="cyber-button" onClick={onClose} style={{ padding: '12px' }}>
               HỦY BỎ
             </button>

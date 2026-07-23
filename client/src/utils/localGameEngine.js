@@ -4,8 +4,8 @@ import { ITEM_TYPES, ITEMS_INFO } from './items.js';
 const ALL_ITEM_KEYS = Object.keys(ITEM_TYPES).map(k => ITEM_TYPES[k]);
 
 export class LocalGameEngine {
-  constructor(p1Name = 'Người chơi 1', p2Name = 'Người chơi 2', initialHp = '', initialItems = '') {
-    this.config = { initialHp, initialItems };
+  constructor(p1Name = 'Người chơi 1', p2Name = 'Người chơi 2', initialHp = '', initialItems = '', reloadItems = '') {
+    this.config = { initialHp, initialItems, reloadItems };
     this.room = {
       code: 'LOCAL_ROOM',
       status: 'playing',
@@ -83,8 +83,13 @@ export class LocalGameEngine {
           countToGive = Math.floor(Math.random() * 3);
         }
       } else {
-        // EVERY RELOAD ROUND GIVES STRICTLY 1 ITEM PER PLAYER!
-        countToGive = 1;
+        // IF RELOAD ITEMS IS BLANK: DEFAULT TO RANDOM 2 TO 3 ITEMS!
+        if (this.config?.reloadItems !== '' && this.config?.reloadItems !== undefined) {
+          countToGive = parseInt(this.config.reloadItems);
+          if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 2) + 2;
+        } else {
+          countToGive = Math.floor(Math.random() * 2) + 2; // Random 2 to 3
+        }
       }
 
       for (let i = 0; i < countToGive; i++) {
@@ -263,7 +268,6 @@ export class LocalGameEngine {
         break;
       }
       case ITEM_TYPES.ADRENALINE: {
-        // FILTER OUT ADRENALINE ITEMS: ADRENALINE CANNOT STEAL ADRENALINE!
         const stealableItems = opponent.items
           .map((item, originalIndex) => ({ item, originalIndex }))
           .filter(i => i.item !== ITEM_TYPES.ADRENALINE);

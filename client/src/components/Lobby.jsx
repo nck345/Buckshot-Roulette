@@ -52,14 +52,14 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
     setShowConfigModal(true);
   };
 
-  const handleConfirmConfig = (initialHp, initialItems) => {
+  const handleConfirmConfig = (initialHp, initialItems, reloadItems) => {
     setShowConfigModal(false);
     if (pendingMode === 'online') {
-      onCreateRoom(nickname.trim(), initialHp, initialItems);
+      onCreateRoom(nickname.trim(), initialHp, initialItems, reloadItems);
     } else if (pendingMode === 'local') {
       const p1 = nickname.trim() || 'Người chơi 1';
       const p2 = p2Nickname.trim() || 'Người chơi 2';
-      onStartLocalGame(p1, p2, initialHp, initialItems);
+      onStartLocalGame(p1, p2, initialHp, initialItems, reloadItems);
     }
   };
 

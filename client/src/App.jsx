@@ -56,11 +56,11 @@ export default function App() {
     setTimeout(() => setIsShake(false), 500);
   };
 
-  // ONLINE ACTIONS WITH CUSTOM INITIAL HP & ITEMS
-  const handleCreateRoom = (nickname, initialHp, initialItems) => {
+  // ONLINE ACTIONS WITH CUSTOM CONFIG (HP, INITIAL ITEMS, RELOAD ITEMS)
+  const handleCreateRoom = (nickname, initialHp, initialItems, reloadItems) => {
     if (!socket) return;
     setIsLocalMode(false);
-    socket.emit('create_room', { nickname, initialHp, initialItems }, (res) => {
+    socket.emit('create_room', { nickname, initialHp, initialItems, reloadItems }, (res) => {
       if (res?.code) {
         setRoomCode(res.code);
       }
@@ -79,10 +79,10 @@ export default function App() {
     });
   };
 
-  // LOCAL 2-PLAYER MODE ACTIONS WITH CUSTOM INITIAL HP & ITEMS
-  const handleStartLocalGame = (p1Name, p2Name, initialHp, initialItems) => {
+  // LOCAL 2-PLAYER MODE ACTIONS WITH CUSTOM CONFIG
+  const handleStartLocalGame = (p1Name, p2Name, initialHp, initialItems, reloadItems) => {
     setIsLocalMode(true);
-    const engine = new LocalGameEngine(p1Name, p2Name, initialHp, initialItems);
+    const engine = new LocalGameEngine(p1Name, p2Name, initialHp, initialItems, reloadItems);
     localEngineRef.current = engine;
     const initialState = engine.getState();
     setGameState(initialState);

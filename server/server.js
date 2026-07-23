@@ -36,8 +36,8 @@ function broadcastRoomState(room) {
 io.on('connection', (socket) => {
   console.log(`🔌 Player connected: ${socket.id}`);
 
-  socket.on('create_room', ({ nickname, initialHp, initialItems }, callback) => {
-    const room = gameEngine.createRoom(socket.id, nickname, initialHp, initialItems);
+  socket.on('create_room', ({ nickname, initialHp, initialItems, reloadItems }, callback) => {
+    const room = gameEngine.createRoom(socket.id, nickname, initialHp, initialItems, reloadItems);
     socket.join(room.code);
     console.log(`🏠 Room created: ${room.code} by ${nickname}`);
     if (callback) callback({ code: room.code });
