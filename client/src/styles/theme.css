@@ -1,0 +1,405 @@
+:root {
+  --bg-color: #06080a;
+  --panel-bg: rgba(12, 16, 20, 0.9);
+  --panel-border: #222d38;
+  --accent-red: #ff3b30;
+  --accent-red-glow: rgba(255, 59, 48, 0.5);
+  --accent-cyan: #00e5ff;
+  --accent-cyan-glow: rgba(0, 229, 255, 0.4);
+  --accent-gold: #ffd60a;
+  --text-main: #e1e7ec;
+  --text-muted: #7c8c9e;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-retro: 'VT323', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+/* CRT Screen Effect Overlay - Fullscreen No Scroll */
+.crt-overlay {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #151a21 0%, #050608 85%);
+  display: flex;
+  flex-direction: column;
+}
+
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 99;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+.crt-overlay::after {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: rgba(18, 16, 16, 0.05);
+  opacity: 0;
+  z-index: 99;
+  pointer-events: none;
+  animation: crtFlicker 0.15s infinite;
+}
+
+@keyframes crtFlicker {
+  0% { opacity: 0.02; }
+  50% { opacity: 0.05; }
+  100% { opacity: 0.01; }
+}
+
+/* Screen Shake Effect */
+.shake-screen {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-4px, 3px, 0) rotate(-1.5deg); }
+  20%, 80% { transform: translate3d(5px, -4px, 0) rotate(2deg); }
+  30%, 50%, 70% { transform: translate3d(-8px, 5px, 0) rotate(-3deg); }
+  40%, 60% { transform: translate3d(8px, -5px, 0) rotate(3deg); }
+}
+
+/* Main Panorama Layout (Fits 100vh) */
+.panorama-layout {
+  height: 100vh;
+  width: 100vw;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  overflow: visible;
+}
+
+/* Header Info Bar */
+.game-header-bar {
+  background: rgba(10, 14, 18, 0.9);
+  border: 1px solid var(--panel-border);
+  padding: 10px 20px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Arena Split (Left Player - Center Gun - Right Player) */
+.arena-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr 320px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+/* Player Card Panel (Left & Right) */
+.player-side-card {
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: visible;
+  transition: all 0.3s ease;
+}
+
+.player-side-card.active-turn {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.25);
+}
+
+.player-side-card.damage-flash {
+  animation: damageFlash 0.5s ease-out;
+  border-color: var(--accent-red) !important;
+}
+
+@keyframes damageFlash {
+  0% { background: rgba(255, 59, 48, 0.4); transform: scale(1.03); }
+  100% { background: var(--panel-bg); transform: scale(1); }
+}
+
+/* Avatar Box */
+.avatar-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.avatar-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #24303c 0%, #0d1217 100%);
+  border: 2px solid var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.avatar-icon.opponent {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
+}
+
+/* Inventory Item Grid */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+  position: relative;
+  overflow: visible;
+}
+
+.item-card-btn {
+  background: rgba(18, 24, 30, 0.9);
+  border: 1px solid #32404e;
+  border-radius: 6px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  width: 100%;
+}
+
+.item-card-btn:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.2);
+  transform: translateY(-4px) scale(1.1);
+  box-shadow: 0 6px 15px rgba(0, 229, 255, 0.3);
+}
+
+.item-card-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* SMART TOOLTIP STYLING */
+.tooltip-container {
+  position: relative;
+  overflow: visible;
+}
+
+.tooltip-container .tooltip-text {
+  visibility: hidden;
+  width: 230px;
+  background-color: #0b0f14;
+  color: #e1e7ec;
+  text-align: left;
+  border-radius: 6px;
+  border: 1px solid var(--accent-cyan);
+  padding: 10px 12px;
+  position: absolute;
+  z-index: 9999;
+  bottom: 120%;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+.tooltip-container.tooltip-center .tooltip-text {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tooltip-container.tooltip-left .tooltip-text {
+  left: 0;
+  transform: translateX(0);
+}
+
+.tooltip-container.tooltip-right .tooltip-text {
+  right: 0;
+  left: auto;
+  transform: translateX(0);
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-container.tooltip-center:hover .tooltip-text {
+  transform: translateX(-50%) translateY(-6px);
+}
+
+.tooltip-container.tooltip-left:hover .tooltip-text {
+  transform: translateY(-6px);
+}
+
+.tooltip-container.tooltip-right:hover .tooltip-text {
+  transform: translateY(-6px);
+}
+
+/* Center Stage (Shotgun & Controls) */
+.center-stage {
+  background: radial-gradient(circle at center, rgba(25, 34, 44, 0.7) 0%, rgba(8, 12, 16, 0.95) 100%);
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.shotgun-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.shotgun-gun {
+  font-size: 5.5rem;
+  filter: drop-shadow(0 12px 25px rgba(0,0,0,0.9));
+  display: inline-block;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+}
+
+/* Gunshot Muzzle Flash */
+.muzzle-flash {
+  position: absolute;
+  font-size: 4.5rem;
+  animation: flashBurst 0.4s ease-out forwards;
+}
+
+.muzzle-flash.left {
+  left: 20%;
+}
+
+.muzzle-flash.right {
+  right: 20%;
+}
+
+@keyframes flashBurst {
+  0% { transform: scale(0.5); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Action Controls Buttons */
+.action-controls {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Cyber Buttons & Inputs */
+.cyber-button {
+  background: linear-gradient(135deg, #1c232b 0%, #11171d 100%);
+  border: 1px solid #3a4754;
+  color: var(--text-main);
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 4px;
+}
+
+.cyber-button:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px var(--accent-cyan-glow);
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+.cyber-button.danger {
+  border-color: var(--accent-red);
+  background: linear-gradient(135deg, #3d1416 0%, #24090b 100%);
+}
+
+.cyber-button.danger:hover:not(:disabled) {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 20px var(--accent-red-glow);
+  color: #fff;
+}
+
+.cyber-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cyber-input {
+  background: rgba(10, 14, 18, 0.9);
+  border: 1px solid var(--panel-border);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  padding: 12px 16px;
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+}
+
+.cyber-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 2px;
+}
