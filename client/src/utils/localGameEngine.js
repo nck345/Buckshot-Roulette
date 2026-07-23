@@ -4,7 +4,8 @@ import { ITEM_TYPES, ITEMS_INFO } from './items.js';
 const ALL_ITEM_KEYS = Object.keys(ITEM_TYPES).map(k => ITEM_TYPES[k]);
 
 export class LocalGameEngine {
-  constructor(p1Name = 'Người chơi 1', p2Name = 'Người chơi 2') {
+  constructor(p1Name = 'Người chơi 1', p2Name = 'Người chơi 2', initialHp = '', initialItems = '') {
+    this.config = { initialHp, initialItems };
     this.room = {
       code: 'LOCAL_ROOM',
       status: 'playing',
@@ -31,18 +32,24 @@ export class LocalGameEngine {
     this.room.status = 'playing';
     this.room.round = 1;
     this.room.turnIndex = Math.floor(Math.random() * 2);
+
+    let startHp = this.config?.initialHp !== '' && this.config?.initialHp !== undefined ? parseInt(this.config.initialHp) : null;
+    if (startHp === null || isNaN(startHp) || startHp < 1) {
+      startHp = Math.floor(Math.random() * 4) + 3; // Random 3 to 6
+    }
+
     this.room.players.forEach(p => {
-      p.hp = 4;
-      p.maxHp = 4;
+      p.maxHp = startHp;
+      p.hp = startHp;
       p.items = [];
       p.handcuffed = false;
     });
 
-    this.addLog(`🎮 BẮT ĐẦU CHẾ ĐỘ 2 NGƯỜI 1 MÁY! ${this.room.players[this.room.turnIndex].nickname} đi trước.`);
-    this.loadNewRound();
+    this.addLog(`🎮 BẮT ĐẦU CHẾ ĐỘ 2 NGƯỜI 1 MÁY! HP ban đầu: ${startHp}. ${this.room.players[this.room.turnIndex].nickname} đi trước.`);
+    this.loadNewRound(true);
   }
 
-  loadNewRound() {
+  loadNewRound(isGameStart = false) {
     this.room.sawActive = false;
     this.room.currentIndex = 0;
 
@@ -65,9 +72,21 @@ export class LocalGameEngine {
 
     this.room.shells = array;
 
-    const itemsPerPlayer = Math.floor(Math.random() * 2) + 2;
     this.room.players.forEach(p => {
-      for (let i = 0; i < itemsPerPlayer; i++) {
+      let countToGive = 0;
+
+      if (isGameStart) {
+        if (this.config?.initialItems !== '' && this.config?.initialItems !== undefined) {
+          countToGive = parseInt(this.config.initialItems);
+          if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 3);
+        } else {
+          countToGive = Math.floor(Math.random() * 3); // 0 to 2
+        }
+      } else {
+        countToGive = Math.floor(Math.random() * 2) + 2; // 2 to 3
+      }
+
+      for (let i = 0; i < countToGive; i++) {
         if (p.items.length < 8) {
           const randomItem = ALL_ITEM_KEYS[Math.floor(Math.random() * ALL_ITEM_KEYS.length)];
           p.items.push(randomItem);
@@ -75,7 +94,11 @@ export class LocalGameEngine {
       }
     });
 
-    this.addLog(`🔄 Nạp đạn mới: ${live} viên THẬT (Đỏ) | ${blank} viên GIẢ (Xanh).`);
+    if (!isGameStart) {
+      this.room.round += 1;
+    }
+
+    this.addLog(`🔄 Nạp đạn mới (Round ${this.room.round}): ${live} viên THẬT (Đỏ) | ${blank} viên GIẢ (Xanh).`);
   }
 
   addLog(text) {
@@ -170,7 +193,7 @@ export class LocalGameEngine {
       this.addLog(`🏆 TRẬN ĐẤU KẾT THÚC! ${winnerName} CHIẾN THẮNG!`);
     } else if (this.room.currentIndex >= this.room.shells.length) {
       this.addLog('⚡ Băng đạn đã hết! Đang nạp băng đạn mới...');
-      this.loadNewRound();
+      this.loadNewRound(false);
     }
 
     return this.getState();
@@ -204,7 +227,7 @@ export class LocalGameEngine {
         this.addLog(`🍺 ${player.nickname} uống bia xả đạn: ${currentShell === 'live' ? 'ĐẠN THẬT (ĐỎ)' : 'ĐẠN GIẢ (XANH)'}`);
         if (this.room.currentIndex >= this.room.shells.length) {
           this.addLog('⚡ Băng đạn đã hết! Đang nạp băng đạn mới...');
-          this.loadNewRound();
+          this.loadNewRound(false);
         }
         break;
       }

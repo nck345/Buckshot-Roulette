@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Plus, Users, Copy, Check, Skull, Monitor } from 'lucide-react';
+import { Play, Plus, Users, Copy, Check, Skull, Monitor, Settings } from 'lucide-react';
 
 export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, roomCode, isWaitingForPlayer }) {
   const [nickname, setNickname] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [p2Nickname, setP2Nickname] = useState('Người chơi 2');
+  
+  // Custom Room Settings
+  const [initialHp, setInitialHp] = useState('');
+  const [initialItems, setInitialItems] = useState('');
+
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState('online'); // 'online' or 'local'
+  const [activeTab, setActiveTab] = useState('online');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,7 +38,7 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
       return;
     }
     setErrorMsg('');
-    onCreateRoom(nickname.trim());
+    onCreateRoom(nickname.trim(), initialHp, initialItems);
   };
 
   const handleJoin = () => {
@@ -52,7 +57,7 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
   const handleLocalPlay = () => {
     const p1 = nickname.trim() || 'Người chơi 1';
     const p2 = p2Nickname.trim() || 'Người chơi 2';
-    onStartLocalGame(p1, p2);
+    onStartLocalGame(p1, p2, initialHp, initialItems);
   };
 
   const copyInviteLink = () => {
@@ -97,23 +102,24 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
   }
 
   return (
-    <div style={{ maxWidth: '520px', margin: '40px auto', padding: '0 20px' }}>
-      <div className="cyber-card" style={{ padding: '35px 30px' }}>
+    <div style={{ maxWidth: '540px', margin: '30px auto', padding: '0 20px', maxHeight: '95vh', overflowY: 'auto' }}>
+      <div className="cyber-card" style={{ padding: '30px 25px' }}>
+        
         {/* Title Header */}
-        <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--accent-red)' }}>
             <Skull size={36} />
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
               BUCKSHOT ROULETTE
             </h1>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
             Game Đấu Súng Luân Phiên Tactical Real-Time
           </p>
         </div>
 
         {/* Mode Selector Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '25px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
           <button
             className={`cyber-button ${activeTab === 'online' ? 'danger' : ''}`}
             onClick={() => setActiveTab('online')}
@@ -141,18 +147,69 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
             padding: '10px 14px',
             borderRadius: '4px',
             fontSize: '0.9rem',
-            marginBottom: '20px',
+            marginBottom: '15px',
             textAlign: 'center'
           }}>
             ⚠️ {errorMsg}
           </div>
         )}
 
+        {/* CUSTOM ROOM CONFIGURATION BOX */}
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.4)',
+          border: '1px solid var(--panel-border)',
+          borderRadius: '6px',
+          padding: '14px',
+          marginBottom: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--accent-gold)', fontWeight: 'bold', marginBottom: '10px' }}>
+            <Settings size={14} />
+            CẤU HÌNH PHÒNG CHƠI (TÙY CHỌN):
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                Lượng máu (HP) ban đầu:
+              </label>
+              <input
+                type="number"
+                className="cyber-input"
+                value={initialHp}
+                onChange={(e) => setInitialHp(e.target.value)}
+                placeholder="Ngẫu nhiên (3 - 6 HP)..."
+                min={1}
+                max={10}
+                style={{ fontSize: '0.85rem', padding: '8px 10px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                Vật phẩm (Đồ) ban đầu:
+              </label>
+              <input
+                type="number"
+                className="cyber-input"
+                value={initialItems}
+                onChange={(e) => setInitialItems(e.target.value)}
+                placeholder="Ngẫu nhiên (0 - 2 đồ)..."
+                min={0}
+                max={8}
+                style={{ fontSize: '0.85rem', padding: '8px 10px' }}
+              />
+            </div>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '6px' }}>
+            * Nếu để trống: Tự động ngẫu nhiên HP (3-6) và Đồ ban đầu (0-2). Các lần nạp đạn sau sẽ cộng thêm 2-3 đồ.
+          </div>
+        </div>
+
         {/* ONLINE TAB */}
         {activeTab === 'online' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
                 Tên Biệt Hiệu (Nickname):
               </label>
               <input
@@ -165,15 +222,13 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
               />
             </div>
 
-            <div style={{ height: '1px', background: 'var(--panel-border)', margin: '5px 0' }} />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
-              <button className="cyber-button danger" onClick={handleCreate} style={{ padding: '15px' }}>
-                <Plus size={20} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+              <button className="cyber-button danger" onClick={handleCreate} style={{ padding: '14px' }}>
+                <Plus size={18} />
                 TẠO PHÒNG MỚI (ONLINE ROOM)
               </button>
 
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                 — HOẶC THAM GIA PHÒNG CÓ SẴN —
               </div>
 
@@ -188,7 +243,7 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
                   style={{ textTransform: 'uppercase', letterSpacing: '2px' }}
                 />
                 <button className="cyber-button" onClick={handleJoin} style={{ whiteSpace: 'nowrap' }}>
-                  <Users size={18} />
+                  <Users size={16} />
                   VÀO PHÒNG
                 </button>
               </div>
@@ -198,13 +253,13 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
 
         {/* LOCAL 2-PLAYER TAB */}
         {activeTab === 'local' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', lineHeight: '1.4' }}>
-              Chế độ **2 Người 1 Máy (Pass & Play)**: Hai người chơi luân phiên thao tác trên cùng một bàn phím/chuột.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center', lineHeight: '1.4' }}>
+              Chế độ **2 Người 1 Máy (Pass & Play)**: Hai người chơi luân phiên thao tác trên cùng một thiết bị.
             </p>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--accent-cyan)', marginBottom: '4px' }}>
                 🔴 Người Chơi 1 (P1):
               </label>
               <input
@@ -218,7 +273,7 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-gold)', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--accent-gold)', marginBottom: '4px' }}>
                 🔵 Người Chơi 2 (P2):
               </label>
               <input
@@ -231,16 +286,15 @@ export default function Lobby({ onCreateRoom, onJoinRoom, onStartLocalGame, room
               />
             </div>
 
-            <button className="cyber-button danger" onClick={handleLocalPlay} style={{ padding: '16px', marginTop: '10px', fontSize: '1.1rem' }}>
-              <Play size={20} />
+            <button className="cyber-button danger" onClick={handleLocalPlay} style={{ padding: '14px', marginTop: '5px', fontSize: '1rem' }}>
+              <Play size={18} />
               BẮT ĐẦU CHƠI 2 NGƯỜI 1 MÁY
             </button>
           </div>
         )}
 
-        {/* Footer info */}
-        <div style={{ textAlign: 'center', marginTop: '25px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-          🎮 Chế độ Online Multiplayer & Chế độ Offline 2 Người 1 Máy
+        <div style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+          🎮 Chế độ Online Multiplayer & Offline 2 Người 1 Máy
         </div>
       </div>
     </div>

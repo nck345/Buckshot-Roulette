@@ -35,10 +35,7 @@ export default function App() {
 
         const lastLog = state.logs?.[state.logs.length - 1];
         if (lastLog?.text.includes('💥')) {
-          soundManager.playGunshot();
           triggerShake();
-        } else if (lastLog?.text.includes('💨')) {
-          soundManager.playBlankClick();
         }
       }
     });
@@ -59,11 +56,11 @@ export default function App() {
     setTimeout(() => setIsShake(false), 500);
   };
 
-  // ONLINE ACTIONS
-  const handleCreateRoom = (nickname) => {
+  // ONLINE ACTIONS WITH CUSTOM INITIAL HP & ITEMS
+  const handleCreateRoom = (nickname, initialHp, initialItems) => {
     if (!socket) return;
     setIsLocalMode(false);
-    socket.emit('create_room', { nickname }, (res) => {
+    socket.emit('create_room', { nickname, initialHp, initialItems }, (res) => {
       if (res?.code) {
         setRoomCode(res.code);
       }
@@ -82,10 +79,10 @@ export default function App() {
     });
   };
 
-  // LOCAL 2-PLAYER MODE ACTIONS
-  const handleStartLocalGame = (p1Name, p2Name) => {
+  // LOCAL 2-PLAYER MODE ACTIONS WITH CUSTOM INITIAL HP & ITEMS
+  const handleStartLocalGame = (p1Name, p2Name, initialHp, initialItems) => {
     setIsLocalMode(true);
-    const engine = new LocalGameEngine(p1Name, p2Name);
+    const engine = new LocalGameEngine(p1Name, p2Name, initialHp, initialItems);
     localEngineRef.current = engine;
     const initialState = engine.getState();
     setGameState(initialState);
@@ -99,10 +96,7 @@ export default function App() {
       setGameState(newState);
       const lastLog = newState.logs?.[newState.logs.length - 1];
       if (lastLog?.text.includes('💥')) {
-        soundManager.playGunshot();
         triggerShake();
-      } else if (lastLog?.text.includes('💨')) {
-        soundManager.playBlankClick();
       }
     } else {
       if (!socket || !roomCode) return;
@@ -148,7 +142,6 @@ export default function App() {
   const isPlaying = gameState?.status === 'playing';
   const isEnded = gameState?.status === 'ended';
 
-  // For Local mode, active socketId is turnSocketId so turn controls are active for current player!
   const activeSocketId = isLocalMode ? gameState?.turnSocketId : socket?.id;
   const isWinner = gameState?.winner === activeSocketId;
   const winnerPlayer = gameState?.players?.find(p => p.socketId === gameState.winner);

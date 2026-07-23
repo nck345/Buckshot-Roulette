@@ -17,7 +17,7 @@ export class GameEngine {
     return code;
   }
 
-  createRoom(hostSocketId, nickname) {
+  createRoom(hostSocketId, nickname, initialHp = '', initialItems = '') {
     let code = this.generateRoomCode();
     while (this.rooms.has(code)) {
       code = this.generateRoomCode();
@@ -26,6 +26,7 @@ export class GameEngine {
     const room = {
       code,
       hostId: hostSocketId,
+      config: { initialHp, initialItems },
       players: [
         {
           socketId: hostSocketId,
@@ -101,19 +102,25 @@ export class GameEngine {
     room.status = 'playing';
     room.round = 1;
     room.turnIndex = Math.floor(Math.random() * 2);
-    const maxHp = 4;
+
+    // Initial HP: if empty, random 3 to 6
+    let startHp = room.config?.initialHp !== '' && room.config?.initialHp !== undefined ? parseInt(room.config.initialHp) : null;
+    if (startHp === null || isNaN(startHp) || startHp < 1) {
+      startHp = Math.floor(Math.random() * 4) + 3; // Random 3 to 6
+    }
+
     room.players.forEach(p => {
-      p.maxHp = maxHp;
-      p.hp = maxHp;
+      p.maxHp = startHp;
+      p.hp = startHp;
       p.items = [];
       p.handcuffed = false;
     });
 
-    this.addLog(room, `Trận đấu bắt đầu! ${room.players[room.turnIndex].nickname} đi trước.`);
-    this.loadNewRound(room);
+    this.addLog(room, `Trận đấu bắt đầu! HP ban đầu: ${startHp}. ${room.players[room.turnIndex].nickname} đi trước.`);
+    this.loadNewRound(room, true);
   }
 
-  loadNewRound(room) {
+  loadNewRound(room, isGameStart = false) {
     room.sawActive = false;
     room.currentIndex = 0;
 
@@ -139,9 +146,24 @@ export class GameEngine {
 
     room.shells = array;
 
-    const itemsPerPlayer = Math.floor(Math.random() * 2) + 2;
+    // Distribute items
     room.players.forEach(p => {
-      for (let i = 0; i < itemsPerPlayer; i++) {
+      let countToGive = 0;
+
+      if (isGameStart) {
+        // Initial game start item count
+        if (room.config?.initialItems !== '' && room.config?.initialItems !== undefined) {
+          countToGive = parseInt(room.config.initialItems);
+          if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 3); // 0 to 2
+        } else {
+          countToGive = Math.floor(Math.random() * 3); // Random 0 to 2
+        }
+      } else {
+        // Subsequent reload round: 2 to 3 items!
+        countToGive = Math.floor(Math.random() * 2) + 2; // 2 to 3
+      }
+
+      for (let i = 0; i < countToGive; i++) {
         if (p.items.length < 8) {
           const randomItem = ALL_ITEM_KEYS[Math.floor(Math.random() * ALL_ITEM_KEYS.length)];
           p.items.push(randomItem);
@@ -149,7 +171,11 @@ export class GameEngine {
       }
     });
 
-    this.addLog(room, `🔄 Nạp đạn mới: ${live} viên THẬT (Đỏ) | ${blank} viên GIẢ (Xanh).`);
+    if (!isGameStart) {
+      room.round += 1;
+    }
+
+    this.addLog(room, `🔄 Nạp đạn mới (Round ${room.round}): ${live} viên THẬT (Đỏ) | ${blank} viên GIẢ (Xanh).`);
   }
 
   addLog(room, text) {
@@ -172,7 +198,6 @@ export class GameEngine {
     }
   }
 
-  // Sanitized state - OPPONENT ITEMS ARE NOW 100% PUBLIC FOR BOTH PLAYERS!
   getSanitizedState(room, forSocketId) {
     return {
       code: room.code,
@@ -196,7 +221,7 @@ export class GameEngine {
         maxHp: p.maxHp,
         handcuffed: p.handcuffed,
         itemsCount: p.items.length,
-        items: [...p.items] // PUBLIC items for both players!
+        items: [...p.items]
       }))
     };
   }
@@ -247,7 +272,6 @@ export class GameEngine {
       this.switchTurn(room);
     }
 
-    // Record last action for real-time animation broadcast
     room.lastAction = {
       type: 'shoot',
       actorSocketId: socketId,
@@ -266,7 +290,7 @@ export class GameEngine {
 
     if (room.currentIndex >= room.shells.length) {
       this.addLog(room, '⚡ Băng đạn đã hết! Đang nạp băng đạn mới...');
-      this.loadNewRound(room);
+      this.loadNewRound(room, false);
     }
 
     return { success: true, resultType, resultMsg };
@@ -313,7 +337,7 @@ export class GameEngine {
         this.addLog(room, `🍺 ${player.nickname} uống bia và xả bỏ viên đạn hiện tại! Đạn bị xả ra là: ${currentShell === 'live' ? 'ĐẠN THẬT (ĐỎ)' : 'ĐẠN GIẢ (XANH)'}`);
         if (room.currentIndex >= room.shells.length) {
           this.addLog(room, '⚡ Băng đạn đã hết! Đang nạp băng đạn mới...');
-          this.loadNewRound(room);
+          this.loadNewRound(room, false);
         }
         break;
       }
@@ -385,7 +409,6 @@ export class GameEngine {
       default: break;
     }
 
-    // Record last action for real-time animation broadcast
     room.lastAction = {
       type: 'use_item',
       actorSocketId: socketId,

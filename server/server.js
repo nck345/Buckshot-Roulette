@@ -25,7 +25,6 @@ app.get('/', (req, res) => {
   res.send({ status: 'ok', name: 'Buckshot Roulette Multiplayer API' });
 });
 
-// Broadcast game state to all players in a room safely
 function broadcastRoomState(room) {
   if (!room) return;
   room.players.forEach(p => {
@@ -37,16 +36,14 @@ function broadcastRoomState(room) {
 io.on('connection', (socket) => {
   console.log(`🔌 Player connected: ${socket.id}`);
 
-  // Create room
-  socket.on('create_room', ({ nickname }, callback) => {
-    const room = gameEngine.createRoom(socket.id, nickname);
+  socket.on('create_room', ({ nickname, initialHp, initialItems }, callback) => {
+    const room = gameEngine.createRoom(socket.id, nickname, initialHp, initialItems);
     socket.join(room.code);
-    console.log(`🏠 Room created: ${room.code} by ${nickname}`);
+    console.log(`🏠 Room created: ${room.code} by ${nickname} (HP: ${initialHp || 'random 3-6'}, Items: ${initialItems || 'random 0-2'})`);
     if (callback) callback({ code: room.code });
     broadcastRoomState(room);
   });
 
-  // Join room
   socket.on('join_room', ({ code, nickname }, callback) => {
     const result = gameEngine.joinRoom(code, socket.id, nickname);
     if (result.error) {
@@ -61,7 +58,6 @@ io.on('connection', (socket) => {
     broadcastRoomState(room);
   });
 
-  // Action: Shoot (self or opponent)
   socket.on('shoot', ({ code, target }, callback) => {
     const room = gameEngine.getRoom(code);
     if (!room) return callback && callback({ error: 'Phòng không tồn tại!' });
@@ -76,7 +72,6 @@ io.on('connection', (socket) => {
     broadcastRoomState(room);
   });
 
-  // Action: Use Item
   socket.on('use_item', ({ code, itemIndex, extraTarget }, callback) => {
     const room = gameEngine.getRoom(code);
     if (!room) return callback && callback({ error: 'Phòng không tồn tại!' });
@@ -95,7 +90,6 @@ io.on('connection', (socket) => {
     broadcastRoomState(room);
   });
 
-  // Action: Restart / Rematch
   socket.on('restart_game', ({ code }) => {
     const room = gameEngine.getRoom(code);
     if (!room) return;
@@ -103,7 +97,6 @@ io.on('connection', (socket) => {
     broadcastRoomState(room);
   });
 
-  // Handle Disconnect
   socket.on('disconnect', () => {
     console.log(`❌ Player disconnected: ${socket.id}`);
     const result = gameEngine.removePlayer(socket.id);
