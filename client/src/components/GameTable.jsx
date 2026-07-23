@@ -151,21 +151,51 @@ export default function GameTable({ gameState, socketId, onShoot, onUseItem, onL
     return 'tooltip-center';
   };
 
+  // Render HP cleanly for any amount (no limit!)
   const renderHP = (hp, maxHp) => {
-    const hearts = [];
-    for (let i = 0; i < maxHp; i++) {
-      hearts.push(
-        <span key={i} style={{
-          color: i < hp ? 'var(--accent-red)' : '#2a343e',
-          fontSize: '1.4rem',
-          filter: i < hp ? 'drop-shadow(0 0 6px rgba(255, 59, 48, 0.7))' : 'none',
-          transition: 'all 0.3s ease'
-        }}>
-          ♥
-        </span>
-      );
+    if (maxHp <= 8) {
+      const hearts = [];
+      for (let i = 0; i < maxHp; i++) {
+        hearts.push(
+          <span key={i} style={{
+            color: i < hp ? 'var(--accent-red)' : '#2a343e',
+            fontSize: '1.4rem',
+            filter: i < hp ? 'drop-shadow(0 0 6px rgba(255, 59, 48, 0.7))' : 'none',
+            transition: 'all 0.3s ease'
+          }}>
+            ♥
+          </span>
+        );
+      }
+      return <div style={{ display: 'flex', gap: '4px' }}>{hearts}</div>;
     }
-    return <div style={{ display: 'flex', gap: '4px' }}>{hearts}</div>;
+
+    // For large HP values (>8), display a sleek Cyber HP Bar + Numbers
+    const percent = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px' }}>
+        <div style={{
+          flex: 1,
+          height: '14px',
+          background: '#151d24',
+          border: '1px solid var(--panel-border)',
+          borderRadius: '7px',
+          overflow: 'hidden',
+          position: 'relative'
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${percent}%`,
+            background: 'linear-gradient(90deg, #ff3b30 0%, #ff6b6b 100%)',
+            boxShadow: '0 0 8px rgba(255, 59, 48, 0.8)',
+            transition: 'width 0.3s ease'
+          }} />
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--accent-red)' }}>
+          {hp}/{maxHp}
+        </span>
+      </div>
+    );
   };
 
   const getGunTransform = () => {

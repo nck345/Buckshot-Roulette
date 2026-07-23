@@ -36,7 +36,7 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--accent-cyan)', marginBottom: '6px' }}>
-              ❤️ Lượng máu ban đầu (Initial HP):
+              ❤️ Lượng máu ban đầu (Initial HP - Không giới hạn):
             </label>
             <input
               type="number"
@@ -45,7 +45,6 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
               onChange={(e) => setInitialHp(e.target.value)}
               placeholder="Để trống = Ngẫu nhiên từ 3 đến 6 HP..."
               min={1}
-              max={10}
               style={{ fontSize: '0.9rem' }}
             />
           </div>
@@ -67,7 +66,7 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
           </div>
 
           <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '10px 12px', borderRadius: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-            ℹ️ <strong>Quy tắc:</strong> Nếu để trống, game sẽ ngẫu nhiên máu (3-6) & vật phẩm (0-2) ở Round 1. Các round nạp đạn tiếp theo sẽ cộng ngẫu nhiên thêm 2-3 vật phẩm mới.
+            ℹ️ <strong>Quy tắc:</strong> Bạn có thể tùy chỉnh lượng máu bất kỳ (không giới hạn). Nếu để trống, game sẽ ngẫu nhiên máu (3-6) & vật phẩm (0-2) ở Round 1. Các round nạp đạn tiếp theo sẽ cộng ngẫu nhiên thêm 2-3 vật phẩm mới.
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '10px' }}>
