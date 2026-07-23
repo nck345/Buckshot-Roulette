@@ -75,7 +75,7 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
               className="cyber-input"
               value={reloadItems}
               onChange={(e) => setReloadItems(e.target.value)}
-              placeholder="Để trống = Ngẫu nhiên từ 2 đến 3 đồ..."
+              placeholder="Để trống = Ngẫu nhiên từ 0 đến 2 đồ..."
               min={0}
               max={8}
               style={{ fontSize: '0.85rem' }}
@@ -83,7 +83,7 @@ export default function RoomConfigModal({ onConfirm, onClose, title = "CẤU HÌ
           </div>
 
           <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '10px 12px', borderRadius: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-            ℹ️ <strong>Mặc định nếu để trống:</strong> Máu ngẫu nhiên (3-6), Đồ ban đầu (0-2), và cộng ngẫu nhiên 2-3 đồ ở mỗi đợt nạp đạn tiếp theo.
+            ℹ️ <strong>Mặc định nếu để trống:</strong> Máu ngẫu nhiên (3-6), Đồ ban đầu (0-2), và cộng ngẫu nhiên 0-2 đồ ở mỗi đợt nạp đạn tiếp theo.
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '6px' }}>

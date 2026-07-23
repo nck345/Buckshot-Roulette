@@ -83,12 +83,12 @@ export class LocalGameEngine {
           countToGive = Math.floor(Math.random() * 3);
         }
       } else {
-        // IF RELOAD ITEMS IS BLANK: DEFAULT TO RANDOM 2 TO 3 ITEMS!
+        // IF RELOAD ITEMS IS BLANK: DEFAULT TO RANDOM 0 TO 2 ITEMS!
         if (this.config?.reloadItems !== '' && this.config?.reloadItems !== undefined) {
           countToGive = parseInt(this.config.reloadItems);
-          if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 2) + 2;
+          if (isNaN(countToGive) || countToGive < 0) countToGive = Math.floor(Math.random() * 3);
         } else {
-          countToGive = Math.floor(Math.random() * 2) + 2; // Random 2 to 3
+          countToGive = Math.floor(Math.random() * 3); // Random 0 to 2
         }
       }
 
